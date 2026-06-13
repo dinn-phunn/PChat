@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PChat - Messenger Style</title>
+    <style>
+        :root {
+            --messenger-blue: #0084FF;
+            --bg-dark: #121212;
+            --card-dark: #1E1E1E;
+            --text-light: #FFFFFF;
+            --text-gray: #B0B3B8;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 0; background-color: var(--bg-dark); color: var(--text-light);
+            user-select: none; -webkit-user-select: none;
+        }
+        .screen { display: none; height: 100vh; flex-direction: column; box-sizing: border-box; }
+        .active { display: flex; }
+        
+        /* MÀN HÌNH ĐĂNG NHẬP / ĐĂNG KÝ */
+        .auth-container { padding: 40px 20px; text-align: center; justify-content: center; height: 100vh; box-sizing: border-box;}
+        .auth-logo { 
+            width: 90px; height: 90px; 
+            background: #FFFFFF; color: #000000; 
+            font-size: 55px; font-weight: bold; 
+            border-radius: 22px; display: flex; 
+            align-items: center; justify-content: center; 
+            margin: 0 auto 30px;
+            box-shadow: 0 4px 10px rgba(255,255,255,0.1);
+        }
+        input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: 1px solid #333; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; -webkit-appearance: none; }
+        button { width: 100%; padding: 14px; background: var(--messenger-blue); border: none; border-radius: 10px; color: #fff; font-size: 16px; font-weight: bold; margin-top: 15px; cursor: pointer; -webkit-appearance: none; }
+        button:active { opacity: 0.8; }
+        .switch-auth { color: var(--text-gray); margin-top: 20px; font-size: 14px; text-decoration: underline; cursor: pointer; padding: 10px; }
+
+        /* GIAO DIỆN CHÍNH */
+        .app-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #222; }
+        .app-title { font-size: 24px; font-weight: bold; }
+        .nav-tabs { display: flex; justify-content: space-around; background: #1A1A1A; padding: 12px 0; border-top: 1px solid #222; position: fixed; bottom: 0; width: 100%; }
+        .tab-btn { color: var(--text-gray); font-size: 14px; font-weight: 500; cursor: pointer; padding: 5px 10px; }
+        .tab-btn.active-tab { color: var(--messenger-blue); }
+
+        /* DANH SÁCH ĐOẠN CHAT BẠN BÈ */
+        .content-area { flex: 1; overflow-y: auto; padding-bottom: 70px; }
+        .item-row { display: flex; align-items: center; justify-content: space-between; padding: 15px; border-bottom: 1px solid #1A1A1A; }
+        .avatar { width: 45px; height: 45px; background: #333; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; }
+        .status-dot { width: 12px; height: 12px; background: #444; border: 2px solid var(--bg-dark); border-radius: 50%; position: absolute; bottom: 0; right: 0; }
+        .status-online { background: #31A24C !important; }
+        .item-info { flex: 1; margin-left: 15px; }
+
+        /* KHUNG CHAT TIN NHẮN CHI TIẾT */
+        .chat-messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; }
+        .msg { max-width: 70%; padding: 10px 14px; border-radius: 18px; margin: 5px 0; font-size: 15px; word-wrap: break-word; }
+        .msg.sent { background: var(--messenger-blue); align-self: flex-end; color: white; }
+        .msg.received { background: #303030; align-self: flex-start; }
+        .chat-input-area { display: flex; padding: 10px; background: #1A1A1A; align-items: center; }
+        .chat-input-area input { margin: 0; flex: 1; }
+        .chat-input-area button { width: auto; margin: 0; margin-left: 10px; padding: 10px 20px; }
+
+        /* CÀI ĐẶT */
+        .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--card-dark); margin: 10px; border-radius: 10px; }
+        .toggle-btn { width: 50px; height: 26px; background: #444; border-radius: 15px; position: relative; transition: 0.3s; }
+        .toggle-btn::before { content: ''; width: 22px; height: 22px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: 0.3s; }
+        .toggle-active { background: #31A24C; }
+        .toggle-active::before { left: 26px; }
+    </style>
+</head>
+<body>
+
+    <!-- MÀN HÌNH ĐĂNG NHẬP / ĐĂNG KÝ -->
+    <div id="authScreen" class="screen active">
+        <div class="auth-container">
+            <div class="auth-logo">P</div>
+            <h2 id="authTitle">Đăng nhập PChat</h2>
+            <input type="text" id="authUsername" placeholder="Tên tài khoản (viết liền)">
+            <input type="password" id="authPassword" placeholder="Mật khẩu">
+            <button id="authBtn">Đăng nhập</button>
+            <div class="switch-auth" id="authSwitch">Chưa có tài khoản? Đăng ký ngay</div>
+        </div>
+    </div>
+
+    <!-- GIAO DIỆN CHÍNH CHỨA CÁC TAB -->
+    <div id="mainScreen" class="screen">
+        <div class="app-header">
+            <div class="app-title" id="pageTitle">Đoạn chat</div>
+        </div>
+        
+        <!-- TAB 1: DANH SÁCH ĐOẠN CHAT VỚI BẠN BÈ -->
+        <div id="tabChats" class="content-area">
+            <div id="friendList"></div>
+        </div>
+
+        <!-- TAB 2: TÌM BẠN VÀ KẾT BẠN BẰNG TÊN TÀI KHOẢN -->
+        <div id="tabSearch" class="content-area" style="display:none;">
+            <div style="padding: 20px 15px;">
+                <p style="margin-top:0; color: var(--text-gray); font-size: 14px;">Nhập chính xác tên tài khoản của bạn bè để thêm họ vào danh sách nhắn tin.</p>
+                <input type="text" id="searchUserInp" placeholder="Nhập tên tài khoản muốn kết bạn...">
+                <button id="searchBtn">Tìm & Kết bạn ngay</button>
+            </div>
+            <div id="searchResult" style="padding:15px; font-weight: bold; text-align: center;"></div>
+        </div>
+
+        <!-- TAB 3: CÀI ĐẶT HỆ THỐNG -->
+        <div id="tabSettings" class="content-area" style="display:none;">
+            <div class="setting-item">
+                <span>Trạng thái hoạt động</span>
+                <div id="statusToggle" class="toggle-btn toggle-active"></div>
+            </div>
+            <div style="padding:15px;">
+                <h3>Sửa thông tin</h3>
+                <input type="text" id="newUsername" placeholder="Tên tài khoản mới">
+                <input type="password" id="newPassword" placeholder="Mật khẩu mới">
+                <button id="updateProfileBtn">Cập nhật thông tin</button>
+                <button id="logoutBtn" style="background:#E41E3F; margin-top: 15px;">Đăng xuất tài khoản</button>
+            </div>
+        </div>
+
+        <!-- THANH ĐIỀU HƯỚNG TAB CHÂN TRANG -->
+        <div class="nav-tabs">
+            <div class="tab-btn active-tab" id="b1">Đoạn chat</div>
+            <div class="tab-btn" id="b2">Tìm bạn</div>
+            <div class="tab-btn" id="b3">Cài đặt</div>
+        </div>
+    </div>
+
+    <!-- MÀN HÌNH CỬA SỔ CHAT CHI TIẾT -->
+    <div id="chatBoxScreen" class="screen">
+        <div class="app-header">
+            <button id="backBtn" style="width:auto; margin:0; padding:6px 12px; background:#333;">⬅ Trở về</button>
+            <div class="app-title" id="chatTargetName">Người dùng</div>
+            <div></div>
+        </div>
+        <div class="chat-messages" id="chatMessagesArea"></div>
+        <div class="chat-input-area">
+            <input type="text" id="messageInput" placeholder="Nhập tin nhắn...">
+            <button id="sendMsgBtn">Gửi</button>
+        </div>
+    </div>
+
+    <script>
+        // Khởi tạo cơ sở dữ liệu ảo trên bộ nhớ máy nếu chưa có
+        if (!localStorage.getItem("pchat_db_users")) {
+            localStorage.setItem("pchat_db_users", JSON.stringify({}));
+        }
+
+        var isLoginMode = true;
+        var currentUser = localStorage.getItem("pchat_user") || null;
+        var activeChatTarget = null;
+        var isOnline = true;
+        var chatInterval = null;
+        var friendInterval = null;
+
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            document.getElementById("authTitle").innerText = isLoginMode ? "Đăng nhập PChat" : "Đăng ký PChat";
+            document.getElementById("authBtn").innerText = isLoginMode ? "Đăng nhập" : "Đăng ký tài khoản";
+            document.getElementById("authSwitch").innerText = isLoginMode ? "Chưa có tài khoản? Đăng ký ngay" : "Đã có tài khoản? Đăng nhập";
+        }
+
+        // ĐĂNG KÝ & ĐĂNG NHẬP
+        function handleAuth() {
+            var user = document.getElementById("authUsername").value.trim().toLowerCase();
+            var pass = document.getElementById("authPassword").value.trim();
+            if(!user || !pass) {
+                alert("Vui lòng điền đầy đủ tên tài khoản và mật khẩu!");
+                return;
+            }
+
+            var users = JSON.parse(localStorage.getItem("pchat_db_users") || "{}");
+
+            if (isLoginMode) {
+                if (users[user] && users[user].password === pass) {
+                    localStorage.setItem("pchat_user", user);
+                    currentUser = user;
+                    users[user].status = true;
+                    localStorage.setItem("pchat_db_users", JSON.stringify(users));
+                    showMainScreen();
+                } else {
+                    alert("Sai tài khoản hoặc mật khẩu!");
+                }
+            } else {
+                if (users[user]) {
+                    alert("Tài khoản này đã tồn tại trên hệ thống!");
+                } else {
+                    users[user] = { password: pass, status: true, friends: "" };
+                    localStorage.setItem("pchat_db_users", JSON.stringify(users));
+                    alert("Đăng ký tài khoản thành công!");
+                    localStorage.setItem("pchat_user", user);
+                    currentUser = user;
+                    showMainScreen();
+                }
+            }
+        }
+
+        function showMainScreen() {
+            document.getElementById("authScreen").classList.remove("active");
+            document.getElementById("mainScreen").classList.add("active");
+            switchTab('chats');
+            loadFriends();
+            if(!friendInterval) {
+                friendInterval = setInterval(loadFriends, 3000); // Tự động làm mới danh sách online mỗi 3s
+            }
+        }
+
+        function switchTab(tab) {
+            document.getElementById("tabChats").style.display = tab === 'chats' ? 'block' : 'none';
+            document.getElementById("tabSearch").style.display = tab === 'search' ? 'block' : 'none';
+            document.getElementById("tabSettings").style.display = tab === 'settings' ? 'block' : 'none';
+            
+            document.getElementById("b1").className = "tab-btn " + (tab === 'chats' ? 'active-tab' : '');
+            document.getElementById("b2").className = "tab-btn " + (tab === 'search' ? 'active-tab' : '');
+            document.getElementById("b3").className = "tab-btn " + (tab === 'settings' ? 'active-tab' : '');
+            
+            if(tab === 'chats') document.getElementById("pageTitle").innerText = "Đoạn chat";
+            if(tab === 'search') document.getElementById("pageTitle").innerText = "Tìm bạn bè";
+            if(tab === 'settings') document.getElementById("pageTitle").innerText = "Cài đặt";
+        }
+
+        // HỆ THỐNG KẾT BẠN CHỈ CẦN NHẬP TÊN TÀI KHOẢN
+        function searchAndAddFriend() {
+            var target = document.getElementById("searchUserInp").value.trim().toLowerCase();
+            var resultDiv = document.getElementById("searchResult");
+            
+            if(!target || target === currentUser) {
+                resultDiv.innerHTML = '<span style="color:#ff3b30;">Tên tài khoản không hợp lệ!</span>';
+                return;
+            }
+            
+            var users = JSON.parse(localStorage.getItem("pchat_db_users") || "{}");
+
+            // Nếu tìm thấy tài khoản đó tồn tại trên hệ thống dữ liệu máy
+            if(users[target]) {
+                var myFriends = users[currentUser].friends ? users[currentUser].friends.split(",") : [];
+                
+                // Nếu chưa có trong danh sách bạn bè thì thêm vào
+                if(myFriends.indexOf(target) === -1) {
+                    myFriends.push(target);
+                }
+                users[currentUser].friends = myFriends.join(",");
+
+                // Tự động thêm mình vào danh sách bạn bè của người kia để kết nối 2 chiều
+                var targetFriends = users[target].friends ? users[target].friends.split(",") : [];
+                if(targetFriends.indexOf(currentUser) === -1) {
+                    targetFriends.push(currentUser);
+                }
+                users[target].friends = targetFriends.join(",");
+
+                localStorage.setItem("pchat_db_users", JSON.stringify(users));
+                resultDiv.innerHTML = '<span style="color:#31A24C;">Đã kết bạn thành công với "' + target + '"! Hãy quay lại tab Đoạn chat để nhắn tin.</span>';
+                document.getElementById("searchUserInp").value = "";
+                loadFriends();
+            } else {
+                resultDiv.innerHTML = '<span style="color:#ff3b30;">Không tồn tại tài khoản này! Bạn bè của bạn phải Đăng ký tài khoản này trước.</span>';
+            }
+        }
+
+        // LOAD DANH SÁCH BẠN BÈ RA MÀN HÌNH CHAT
+        function loadFriends() {
+            var users = JSON.parse(localStorage.getItem("pchat_db_users") || "{}");
+            if(!users[currentUser]) return;
+
+            var listDiv = document.getElementById("friendList");
+            var myFriends = users[currentUser].friends ? users[currentUser].friends.split(",") : [];
+            
+            if(myFriends.length === 0 || myFriends[0] === "") {
+                listDiv.innerHTML = "<p style='padding:30px; color:#888; text-align:center; font-size:14px;'>Chưa có đoạn chat nào.<br>Hãy qua mục <b>'Tìm bạn'</b> nhập tên tài khoản của bạn bè để kết bạn nhé!</p>";
+                return;
+            }
+
+            var htmlContent = "";
+            for(var i = 0; i < myFriends.length; i++) {
+                var fName = myFriends[i];
+                if(users[fName]) {
+                    var isUserOnline = users[fName].status ? "status-online" : "";
+                    htmlContent += '<div class="item-row" data-username="' + fName + '" style="cursor:pointer;">' +
+                        '<div class="avatar">' + fName.charAt(0).toUpperCase() + '<div class="status-dot ' + isUserOnline + '"></div></div>' +
+                        '<div class="item-info">' +
+                            '<div style="font-weight:bold;">' + fName + '</div>' +
+                            '<div style="font-size:13px; color:#888;">Nhấn để bắt đầu nhắn tin</div>' +
+                        '</div>' +
+                    '</div>';
+                }
+            }
+            listDiv.innerHTML = htmlContent;
+
+            // Gán sự kiện click vào từng người để mở hộp chat
+            var rows = listDiv.getElementsByClassName("item-row");
+            for(var j = 0; j < rows.length; j++) {
+                rows[j].onclick = function() {
+                    var name = this.getAttribute("data-username");
+                    openChat(name);
+                };
+            }
+        }
+
+        // MỞ KHUNG TRÒ CHUYỆN KHÉP KÍN
+        function openChat(target) {
+            activeChatTarget = target;
+            document.getElementById("chatTargetName").innerText = target;
+            document.getElementById("mainScreen").classList.remove("active");
+            document.getElementById("chatBoxScreen").classList.add("active");
+            loadMessages();
+            if(!chatInterval) {
+                chatInterval = setInterval(loadMessages, 1000); // Cập nhật tin nhắn liên tục mỗi 1s
+            }
+        }
+
+        // TẢI TIN NHẮN
+        function loadMessages() {
+            if(!activeChatTarget) return;
+            var roomId = currentUser < activeChatTarget ? (currentUser + "_" + activeChatTarget) : (activeChatTarget + "_" + currentUser);
+            var localMsgs = JSON.parse(localStorage.getItem("msgs_" + roomId) || "[]");
+            
+            var area = document.getElementById("chatMessagesArea");
+            var htmlContent = "";
+            for(var i = 0; i < localMsgs.length; i++) {
+                var m = localMsgs[i];
+                var c = m.sender === currentUser ? "msg sent" : "msg received";
+                htmlContent += '<div class="' + c + '">' + m.text + '</div>';
+            }
+            area.innerHTML = htmlContent;
+            area.scrollTop = area.scrollHeight; // Tự cuộn xuống tin nhắn mới nhất
+        }
+
+        // GỬI TIN NHẮN
+        function sendMessage() {
+            var txt = document.getElementById("messageInput").value.trim();
+            if(!txt) return;
+            var roomId = currentUser < activeChatTarget ? (currentUser + "_" + activeChatTarget) : (activeChatTarget + "_" + currentUser);
+            var localMsgs = JSON.parse(localStorage.getItem("msgs_" + roomId) || "[]");
+            
+            localMsgs.push({ sender: currentUser, text: txt });
+            localStorage.setItem("msgs_" + roomId, JSON.stringify(localMsgs));
+            document.getElementById("messageInput").value = "";
+            loadMessages();
+        }
+
+        function backToMain() {
+            if(chatInterval) {
+                clearInterval(chatInterval);
+                chatInterval = null;
+            }
+            activeChatTarget = null;
+            document.getElementById("chatBoxScreen").classList.remove("active");
+            document.getElementById("mainScreen").classList.add("active");
+            document.getElementById("searchResult").innerHTML = ""; // Xóa thông báo cũ ở tab tìm kiếm
+        }
+
+        function toggleActiveStatus() {
+            isOnline = !isOnline;
+            var btn = document.getElementById("statusToggle");
+            if(isOnline) btn.classList.add("toggle-active"); else btn.classList.remove("toggle-active");
+            
+            var users = JSON.parse(localStorage.getItem("pchat_db_users") || "{}");
+            if(users[currentUser]) {
+                users[currentUser].status = isOnline;
+                localStorage.setItem("pchat_db_users", JSON.stringify(users));
+            }
+        }
+
+        function updateProfile() {
+            var newU = document.getElementById("newUsername").value.trim().toLowerCase();
+            var newP = document.getElementById("newPassword").value.trim();
+            if(!newU || !newP) {
+                alert("Vui lòng nhập đủ thông tin mới!");
+                return;
+            }
+
+            var users = JSON.parse(localStorage.getItem("pchat_db_users") || "{}");
+            if(users[newU] && newU !== currentUser) {
+                alert("Tên tài khoản này đã có người đăng ký!");
+            } else {
+                var oldData = users[currentUser];
+                delete users[currentUser];
+                users[newU] = { password: newP, status: false, friends: oldData.friends };
+                localStorage.setItem("pchat_db_users", JSON.stringify(users));
+                alert("Đổi thông tin thành công! Hệ thống sẽ tự động đăng xuất.");
+                logout();
+            }
+        }
+
+        function logout() {
+            var users = JSON.parse(localStorage.getItem("pchat_db_users") || "{}");
+            if(users[currentUser]) {
+                users[currentUser].status = false;
+                localStorage.setItem("pchat_db_users", JSON.stringify(users));
+            }
+            localStorage.removeItem("pchat_user");
+            currentUser = null;
+            if(friendInterval) {
+                clearInterval(friendInterval);
+                friendInterval = null;
+            }
+            document.getElementById("mainScreen").classList.remove("active");
+            document.getElementById("authScreen").classList.add("active");
+        }
+
+        // GÁN SỰ KIỆN NÚT BẤM CƯỠNG BỨC CHỐNG LIỆT TRÊN WEBVIEW IPHONE
+        window.addEventListener("DOMContentLoaded", function() {
+            document.getElementById("authBtn").onclick = handleAuth;
+            document.getElementById("authSwitch").onclick = toggleAuthMode;
+            document.getElementById("b1").onclick = function() { switchTab('chats'); };
+            document.getElementById("b2").onclick = function() { switchTab('search'); };
+            document.getElementById("b3").onclick = function() { switchTab('settings'); };
+            document.getElementById("searchBtn").onclick = searchAndAddFriend;
+            document.getElementById("statusToggle").onclick = toggleActiveStatus;
+            document.getElementById("updateProfileBtn").onclick = updateProfile;
+            document.getElementById("logoutBtn").onclick = logout;
+            document.getElementById("backBtn").onclick = backToMain;
+            document.getElementById("sendMsgBtn").onclick = sendMessage;
+
+            // Kiểm tra trạng thái nhớ đăng nhập của thiết bị
+            if(currentUser) {
+                showMainScreen();
+            }
+        });
+    </script>
+</body>
+</html>
